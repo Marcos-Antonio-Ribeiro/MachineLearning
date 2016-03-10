@@ -1,0 +1,93 @@
+---
+title: "Activity Prediction from Accelerometers Data"
+author: "Marcos Antonio Ribeiro"
+date: "March 9, 2016."
+output: html_document
+---
+
+Overview: The goal of this job is to predict the manner in which people did the exercise based on the data colected from accelerometers on the belt, forearm, arm, and dumbell of 6 participants.
+
+#You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did.
+
+
+### Set environment and load libraries
+```{r}
+    setwd("C:/Coursera/Git/courses/08_PracticalMachineLearning/Project")
+    library(dplyr)
+    library(caret)
+    library(randomForest)
+```
+
+### Getting training data 
+```{r}
+    if (!file.exists("pml-training.csv"))
+        download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "pml-training.csv")
+    train <- read.csv("pml-training.csv")
+
+```
+
+### Getting test data
+```{r}
+    if (!file.exists("pml-testing.csv"))
+        download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv","pml-testing.csv")
+    test <- read.csv("pml-testing.csv" )
+```
+
+### Visualizind the data to make decisions about cleaning
+
+```{r}
+    head(train)
+    head(test)
+```
+
+### Building functions to clean the data
+
+```{r}
+    #Function to remove NA´s columns from a matrix "x" wich the number of NA values is equal or bigger then "n"
+    remove.na.cols <- function(x, n) {
+    nvar <- ncol(x)
+    y <- x
+    for (i in nvar:1 ) {
+        if (sum(is.na(y[i]))>=n) 
+            y <- y[-i]
+        }
+        return(y)
+    }
+    
+    # Function to clean and transform data
+    treat_data <- function(dtf, num_na) {
+        # Fill empty values with NA
+        dtf[dtf==""] <- NA
+        # Remove NA columns
+        dtf <- remove.na.cols(dtf, num_na)
+        # Remove columns from 1 to 7 as they seems not to be directly correlated with activities
+        dtf <- dtf[-1:-7]
+        return(dtf)
+    }
+```
+
+### Applying cleaning functions
+
+```{r}
+    train <- treat_data(train, 19000)
+    test <- treat_data(test, 20)
+```
+
+### As we are dealing with a small data set, let´s create a random forest prediction model with cross validation, in order to get a model with a better accuracy.
+```{r}
+    model_fit <- randomForest(classe ~ ., data = train)
+    summary(model_fit)
+```
+
+### Listing the most important predictors
+
+```{r}
+    varImpPlot(model_fit, sort=TRUE, n.var=min(20, nrow(model_fit$importance)),
+               type=NULL, class=NULL, scale=TRUE, main="20 most important predictors", lwd=4, col="blue")
+```
+
+### Now let´s apply our model to predict the test dataset in order to answear the quiz.
+
+```{r}
+    predrf <-predict(model_fit, newdata = test)
+```
